@@ -3,6 +3,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
+const { exec, execSync } = require('child_process');
 
 const cors = require('cors');
 
@@ -162,11 +163,15 @@ app.get('/browse', (req, res) => {
 
 // Endpoint to receive project directory context and toggle name
 app.post('/remove-toggle', async (req, res) => {
-  const exec = require('child_process').exec;
 
-  const { directory, toggleName, postCommand } = req.body;
+  const { directory, toggleName, postCommand, branchName, baseBranch } = req.body;
   if (!directory || !toggleName) {
     return res.status(400).json({ error: 'Missing directory or toggleName' });
+  }
+
+  // Validate branch name format
+  if (branchName && !/^story\/kk_USAB\d+/.test(branchName)) {
+    return res.status(400).json({ error: 'Branch name must match format: story/kk_USAB12345...' });
   }
 
   // Resolve directory path to absolute
@@ -251,21 +256,70 @@ app.post('/remove-toggle', async (req, res) => {
   const summaryMatch = responseText.match(/---SUMMARY_START---(\s*[\s\S]*?)---SUMMARY_END---/);
   const summary = summaryMatch ? summaryMatch[1].trim() : '';
 
+  // Extract PR info from Claude response
+  const prMatch = responseText.match(/---PR_START---([\s\S]*?)---PR_END---/);
+  let prTitle = '';
+  let prBody = '';
+  if (prMatch) {
+    const prBlock = prMatch[1].trim();
+    const titleMatch = prBlock.match(/^title:\s*(.+)/m);
+    prTitle = titleMatch ? titleMatch[1].trim() : `Remove toggle: ${toggleName}`;
+    const bodyMatch = prBlock.match(/body:\s*([\s\S]*)/);
+    prBody = bodyMatch ? bodyMatch[1].trim() : '';
+  }
+
+  // Helper to create a PR after build
+  const createPullRequest = (cwd, toggleName) => {
+    const branch = branchName || `remove-toggle/${toggleName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+    const base = baseBranch || 'main';
+    // Extract story ID (e.g. USAB12345) from branch name for commit message
+    const storyMatch = branch.match(/USAB\d+/);
+    const storyId = storyMatch ? storyMatch[0] : '';
+    const commitMsg = storyId
+      ? `${storyId} ${prTitle || 'Remove toggle: ' + toggleName}`
+      : (prTitle || `Remove toggle: ${toggleName}`);
+    try {
+      // Ensure we're on the base branch first, then create new branch from it
+      execSync(`git checkout ${base}`, { cwd });
+      execSync(`git pull origin ${base}`, { cwd });
+      execSync(`git checkout -b ${branch}`, { cwd });
+      execSync('git add -A', { cwd });
+      execSync(`git commit -m "${commitMsg}"`, { cwd });
+      execSync(`git push origin ${branch}`, { cwd });
+      const prUrl = execSync(
+        `gh pr create --draft --base ${base} --title "${prTitle.replace(/"/g, '\\"')}" --body "${prBody.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`,
+        { cwd, encoding: 'utf8' }
+      ).trim();
+      return { prUrl, branch };
+    } catch (err) {
+      return { prError: err.message, branch };
+    }
+  };
+
   // Run post-refactor command if provided and files were modified
   if (updatedCount > 0 && postCommand && postCommand.trim()) {
     exec(postCommand.trim(), { cwd: absoluteDirectory }, (error, stdout, stderr) => {
-      if (error) {
-        return res.json({
-          success: false, updated: updatedCount, changedFiles,
-          build: 'fail', error: stderr || error.message,
-          fileDiffs, summary
-        });
+      const buildResult = error
+        ? { build: 'fail', error: stderr || error.message }
+        : { build: 'success', output: stdout };
+
+      // Create PR only on successful build
+      let pr = {};
+      if (!error) {
+        pr = createPullRequest(absoluteDirectory, toggleName);
       }
-      res.json({
-        success: true, updated: updatedCount, changedFiles,
-        build: 'success', output: stdout,
-        fileDiffs, summary
+
+      return res.json({
+        success: !error, updated: updatedCount, changedFiles,
+        ...buildResult, fileDiffs, summary, ...pr
       });
+    });
+  } else if (updatedCount > 0) {
+    // No build command but files changed — create PR directly
+    const pr = createPullRequest(absoluteDirectory, toggleName);
+    res.json({
+      success: true, updated: updatedCount, changedFiles,
+      build: 'skipped', fileDiffs, summary, ...pr
     });
   } else {
     res.json({

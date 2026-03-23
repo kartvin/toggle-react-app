@@ -16,6 +16,9 @@ function App() {
   const [buildOutput, setBuildOutput] = useState('');
   const [buildStatus, setBuildStatus] = useState('');
   const [showDetailed, setShowDetailed] = useState(false);
+  const [branchName, setBranchName] = useState('');
+  const [baseBranch, setBaseBranch] = useState('main');
+  const [prUrl, setPrUrl] = useState('');
   const [showBrowser, setShowBrowser] = useState(false);
   const [browsePath, setBrowsePath] = useState('/');
   const [browseDirs, setBrowseDirs] = useState([]);
@@ -48,6 +51,7 @@ function App() {
     setFileList([]);
     setBuildOutput('');
     setBuildStatus('');
+    setPrUrl('');
     try {
       const res = await fetch('http://localhost:4000/remove-toggle', {
         method: 'POST',
@@ -57,7 +61,9 @@ function App() {
         body: JSON.stringify({
           directory,
           toggleName: name,
-          postCommand
+          postCommand,
+          branchName,
+          baseBranch
         })
       });
       const data = await res.json();
@@ -71,6 +77,7 @@ function App() {
       setFileList(data.changedFiles || []);
       setBuildStatus(data.build || '');
       setBuildOutput(data.output || data.error || '');
+      setPrUrl(data.prUrl || data.prError || '');
     } catch (err) {
       setResult('Error contacting backend.');
       setFileDiffs([]);
@@ -78,6 +85,7 @@ function App() {
       setFileList([]);
       setBuildOutput('');
       setBuildStatus('');
+      setPrUrl('');
     }
     setLoading(false);
   };
@@ -154,6 +162,24 @@ function App() {
             placeholder="Post-refactor command (e.g. mvn clean package)"
             value={postCommand}
             onChange={e => setPostCommand(e.target.value)}
+          />
+          {/* Branch name */}
+          <input
+            type="text"
+            placeholder="Branch name (e.g. story/kk_USAB12345)"
+            value={branchName}
+            onChange={e => setBranchName(e.target.value)}
+            pattern="^story/kk_USAB\d+.*$"
+            title="Must match format: story/kk_USAB12345..."
+            required
+          />
+          {/* Base branch */}
+          <input
+            type="text"
+            placeholder="Base branch (e.g. main, develop)"
+            value={baseBranch}
+            onChange={e => setBaseBranch(e.target.value)}
+            required
           />
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '14px', cursor: 'pointer' }}>
             <input
@@ -379,6 +405,27 @@ function App() {
                     lineHeight: '1.5'
                   }}>{buildOutput}</pre>
                 )}
+              </div>
+            )}
+
+            {/* Pull Request */}
+            {prUrl && (
+              <div style={{ marginTop: '1.5rem', borderTop: '1px solid #444', paddingTop: '1rem' }}>
+                <div style={{
+                  background: '#2d2d2d',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  color: prUrl.startsWith('http') ? '#4ec9b0' : '#f44747',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  borderLeft: `3px solid ${prUrl.startsWith('http') ? '#4ec9b0' : '#f44747'}`
+                }}>
+                  {prUrl.startsWith('http') ? (
+                    <>Pull Request Created: <a href={prUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#569cd6' }}>{prUrl}</a></>
+                  ) : (
+                    <>PR Creation Failed: {prUrl}</>
+                  )}
+                </div>
               </div>
             )}
 

@@ -27,4 +27,16 @@ After all file blocks, output a summary section:
 - Confirm whether the code should compile with the provided build command
 ---SUMMARY_END---
 
+After the summary, output a pull request section with a title and body suitable for a GitHub PR:
+
+---PR_START---
+title: <concise PR title describing the toggle removal>
+body:
+<PR description in markdown format including:
+- What toggle/variable was removed
+- List of files changed
+- Summary of changes made
+- Any cleanup performed>
+---PR_END---
+
 If no files need changes, output exactly: NO_CHANGES_NEEDED
