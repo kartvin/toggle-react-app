@@ -19,6 +19,7 @@ function App() {
   const [branchName, setBranchName] = useState('');
   const [baseBranch, setBaseBranch] = useState('main');
   const [prUrl, setPrUrl] = useState('');
+  const [provider, setProvider] = useState('');
   const [showBrowser, setShowBrowser] = useState(false);
   const [browsePath, setBrowsePath] = useState('/');
   const [browseDirs, setBrowseDirs] = useState([]);
@@ -52,6 +53,7 @@ function App() {
     setBuildOutput('');
     setBuildStatus('');
     setPrUrl('');
+    setProvider('');
     try {
       const res = await fetch('http://localhost:4000/remove-toggle', {
         method: 'POST',
@@ -78,6 +80,7 @@ function App() {
       setBuildStatus(data.build || '');
       setBuildOutput(data.output || data.error || '');
       setPrUrl(data.prUrl || data.prError || '');
+      setProvider(data.provider || '');
     } catch (err) {
       setResult('Error contacting backend.');
       setFileDiffs([]);
@@ -86,6 +89,7 @@ function App() {
       setBuildOutput('');
       setBuildStatus('');
       setPrUrl('');
+      setProvider('');
     }
     setLoading(false);
   };
@@ -421,9 +425,9 @@ function App() {
                   borderLeft: `3px solid ${prUrl.startsWith('http') ? '#4ec9b0' : '#f44747'}`
                 }}>
                   {prUrl.startsWith('http') ? (
-                    <>Pull Request Created: <a href={prUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#569cd6' }}>{prUrl}</a></>
+                    <>{provider === 'gitlab' ? 'Merge Request' : 'Pull Request'} Created: <a href={prUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#569cd6' }}>{prUrl}</a></>
                   ) : (
-                    <>PR Creation Failed: {prUrl}</>
+                    <>{provider === 'gitlab' ? 'MR' : 'PR'} Creation Failed: {prUrl}</>
                   )}
                 </div>
               </div>

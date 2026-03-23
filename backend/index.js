@@ -268,10 +268,23 @@ app.post('/remove-toggle', async (req, res) => {
     prBody = bodyMatch ? bodyMatch[1].trim() : '';
   }
 
-  // Helper to create a PR after build
+  // Detect git provider from the origin remote URL
+  const detectProvider = (cwd) => {
+    try {
+      const remoteUrl = execSync('git remote get-url origin', { cwd, encoding: 'utf8' }).trim();
+      if (/github\.com/i.test(remoteUrl)) return 'github';
+      if (/gitlab\.com/i.test(remoteUrl)) return 'gitlab';
+      return 'unknown';
+    } catch {
+      return 'unknown';
+    }
+  };
+
+  // Helper to create a PR/MR after build
   const createPullRequest = (cwd, toggleName) => {
     const branch = branchName || `remove-toggle/${toggleName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
     const base = baseBranch || 'main';
+    const provider = detectProvider(cwd);
     // Extract story ID (e.g. USAB12345) from branch name for commit message
     const storyMatch = branch.match(/USAB\d+/);
     const storyId = storyMatch ? storyMatch[0] : '';
@@ -286,13 +299,27 @@ app.post('/remove-toggle', async (req, res) => {
       execSync('git add -A', { cwd });
       execSync(`git commit -m "${commitMsg}"`, { cwd });
       execSync(`git push origin ${branch}`, { cwd });
-      const prUrl = execSync(
-        `gh pr create --draft --base ${base} --title "${prTitle.replace(/"/g, '\\"')}" --body "${prBody.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`,
-        { cwd, encoding: 'utf8' }
-      ).trim();
-      return { prUrl, branch };
+
+      let prUrl;
+      if (provider === 'gitlab') {
+        prUrl = execSync(
+          `glab mr create --draft --target-branch ${base} --title "${prTitle.replace(/"/g, '\\"')}" --description "${prBody.replace(/"/g, '\\"').replace(/\n/g, '\\n')}" --source-branch ${branch} --yes`,
+          { cwd, encoding: 'utf8' }
+        ).trim();
+      } else {
+        prUrl = execSync(
+          `gh pr create --draft --base ${base} --title "${prTitle.replace(/"/g, '\\"')}" --body "${prBody.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`,
+          { cwd, encoding: 'utf8' }
+        ).trim();
+      }
+
+      // Extract URL from output (glab may include extra text)
+      const urlMatch = prUrl.match(/https?:\/\/\S+/);
+      prUrl = urlMatch ? urlMatch[0] : prUrl;
+
+      return { prUrl, branch, provider };
     } catch (err) {
-      return { prError: err.message, branch };
+      return { prError: err.message, branch, provider };
     }
   };
 
@@ -315,7 +342,7 @@ app.post('/remove-toggle', async (req, res) => {
       });
     });
   } else if (updatedCount > 0) {
-    // No build command but files changed — create PR directly
+    // No build command but files changed — create PR/MR directly
     const pr = createPullRequest(absoluteDirectory, toggleName);
     res.json({
       success: true, updated: updatedCount, changedFiles,
