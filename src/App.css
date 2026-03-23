@@ -4,11 +4,16 @@ body {
   margin: 0;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 .App {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  padding: 2rem;
 }
 
 .App-header {
@@ -16,7 +21,7 @@ body {
   border-radius: 24px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.08);
   padding: 2rem 2.5rem;
-  max-width: 420px;
+  max-width: 900px;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -47,6 +52,7 @@ input[type="text"], input[type="file"] {
   margin-bottom: 1rem;
   font-size: 1rem;
   background: #f9fafb;
+  box-sizing: border-box;
 }
 
 input[type="radio"] {
@@ -75,4 +81,40 @@ button[type="submit"]:hover {
   margin-top: 1rem;
   color: #0072CE;
   font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .App {
+    padding: 1rem;
+  }
+  .App-header {
+    padding: 1.5rem 1.25rem;
+    border-radius: 16px;
+  }
+  h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  input[type="text"], input[type="file"] {
+    font-size: 0.9rem;
+    padding: 0.6rem;
+  }
+  button[type="submit"] {
+    font-size: 1rem;
+    padding: 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .App {
+    padding: 0.5rem;
+  }
+  .App-header {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+  h2 {
+    font-size: 1.1rem;
+  }
 }

@@ -15,6 +15,7 @@ function App() {
   const [postCommand, setPostCommand] = useState('mvn clean install -DskipTests=true');
   const [buildOutput, setBuildOutput] = useState('');
   const [buildStatus, setBuildStatus] = useState('');
+  const [showDetailed, setShowDetailed] = useState(false);
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -57,7 +58,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h2>Toggle Deletion Form</h2>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '300px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '500px' }}>
           <div>
             <label>
               <input
@@ -112,6 +113,14 @@ function App() {
             value={postCommand}
             onChange={e => setPostCommand(e.target.value)}
           />
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '14px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={showDetailed}
+              onChange={e => setShowDetailed(e.target.checked)}
+            />
+            Show detailed output
+          </label>
           <button type="submit" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit'}
           </button>
@@ -123,6 +132,7 @@ function App() {
         <div style={{
           margin: '2rem auto',
           maxWidth: '900px',
+          width: '100%',
           background: '#1e1e1e',
           color: '#d4d4d4',
           fontFamily: '"Courier New", Courier, monospace',
@@ -145,7 +155,7 @@ function App() {
           </div>
           <div style={{ padding: '16px', maxHeight: '700px', overflowY: 'auto' }}>
 
-            {/* File Diffs */}
+            {/* File Diffs / Full Content */}
             {fileDiffs.map((fileDiff, idx) => (
               <div key={idx} style={{ marginBottom: '2rem' }}>
                 <div style={{
@@ -156,54 +166,96 @@ function App() {
                   color: '#569cd6',
                   fontWeight: 'bold',
                   fontSize: '14px',
-                  borderLeft: '3px solid #569cd6'
+                  borderLeft: '3px solid #569cd6',
+                  wordBreak: 'break-all'
                 }}>
                   {fileDiff.file}
                 </div>
-                <div style={{ padding: '0 8px' }}>
-                  {fileDiff.diff.map((change, cIdx) => {
-                    if (change.type === 'separator') {
+                {showDetailed && (
+                  <div style={{ padding: '0 8px', overflowX: 'auto' }}>
+                    {fileDiff.diff.map((change, cIdx) => {
+                      if (change.type === 'separator') {
+                        return (
+                          <div key={cIdx} style={{
+                            color: '#555',
+                            padding: '4px 0',
+                            textAlign: 'center',
+                            fontSize: '11px',
+                            margin: '4px 0'
+                          }}>• • •</div>
+                        );
+                      }
+                      const colors = {
+                        deleted: { color: '#f44747', bg: 'rgba(244,71,71,0.1)', prefix: '-' },
+                        added: { color: '#4ec9b0', bg: 'rgba(78,201,176,0.1)', prefix: '+' },
+                        context: { color: '#d4d4d4', bg: 'transparent', prefix: ' ' }
+                      };
+                      const style = colors[change.type] || colors.context;
+                      const lineNum = change.origLine || change.newLine || '';
                       return (
                         <div key={cIdx} style={{
-                          color: '#555',
-                          padding: '4px 0',
-                          textAlign: 'center',
-                          fontSize: '11px',
-                          margin: '4px 0'
-                        }}>• • •</div>
+                          color: style.color,
+                          background: style.bg,
+                          padding: '1px 8px',
+                          fontSize: '13px',
+                          lineHeight: '1.6',
+                          borderRadius: '2px'
+                        }}>
+                          <span style={{ display: 'inline-block', width: '40px', textAlign: 'right', marginRight: '12px', color: '#555', fontSize: '11px' }}>{lineNum}</span>
+                          <span style={{ marginRight: '8px' }}>{style.prefix}</span>
+                          {change.line}
+                        </div>
                       );
-                    }
-                    const colors = {
-                      deleted: { color: '#f44747', bg: 'rgba(244,71,71,0.1)', prefix: '-' },
-                      added: { color: '#4ec9b0', bg: 'rgba(78,201,176,0.1)', prefix: '+' },
-                      context: { color: '#d4d4d4', bg: 'transparent', prefix: ' ' }
-                    };
-                    const style = colors[change.type] || colors.context;
-                    const lineNum = change.origLine || change.newLine || '';
-                    return (
-                      <div key={cIdx} style={{
-                        color: style.color,
-                        background: style.bg,
-                        padding: '1px 8px',
-                        fontSize: '13px',
-                        lineHeight: '1.6',
-                        borderRadius: '2px'
-                      }}>
-                        <span style={{ display: 'inline-block', width: '40px', textAlign: 'right', marginRight: '12px', color: '#555', fontSize: '11px' }}>{lineNum}</span>
-                        <span style={{ marginRight: '8px' }}>{style.prefix}</span>
-                        {change.line}
-                      </div>
-                    );
-                  })}
-                </div>
+                    })}
+                  </div>
+                )}
               </div>
             ))}
 
             {/* Summary */}
             {summary && (
-              <div style={{ marginTop: '1.5rem', borderTop: '1px solid #444', paddingTop: '1rem' }}>
-                <div style={{ color: '#dcdcaa', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>Summary</div>
-                <pre style={{ margin: 0, color: '#d4d4d4', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{summary}</pre>
+              <div style={{ marginTop: '2rem', borderTop: '2px solid #444', paddingTop: '1.5rem' }}>
+                <div style={{
+                  background: '#2d2d2d',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  marginBottom: '12px',
+                  color: '#dcdcaa',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  borderLeft: '3px solid #dcdcaa'
+                }}>Summary</div>
+                <div style={{ padding: '0 12px' }}>
+                  {summary.split('\n').map((line, i) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return <div key={i} style={{ height: '8px' }} />;
+                    const isBullet = trimmed.startsWith('-') || trimmed.startsWith('•');
+                    const bulletText = isBullet ? trimmed.replace(/^[-•]\s*/, '') : trimmed;
+                    // Detect file paths (e.g. src/main/resources/file.yaml or FeatureToggle.java)
+                    const fileMatch = bulletText.match(/^([^\s:]+\.\w{1,6})\s*[:—\-–]\s*(.*)/);
+                    let bulletColor = '#d4d4d4';
+                    if (/removed|deleted|cleanup/i.test(bulletText)) bulletColor = '#f44747';
+                    else if (/compile|success|should build/i.test(bulletText)) bulletColor = '#4ec9b0';
+                    else if (/changed|modified|updated/i.test(bulletText)) bulletColor = '#ce9178';
+                    return (
+                      <div key={i} style={{
+                        color: bulletColor,
+                        padding: '4px 0',
+                        fontSize: '13px',
+                        lineHeight: '1.7'
+                      }}>
+                        {isBullet && <span style={{ color: '#569cd6', marginRight: '8px' }}>●</span>}
+                        {fileMatch ? (
+                          <>
+                            <span style={{ color: '#569cd6', fontWeight: 'bold' }}>{fileMatch[1]}</span>
+                            <span style={{ color: '#666', margin: '0 6px' }}>—</span>
+                            <span style={{ color: bulletColor }}>{fileMatch[2]}</span>
+                          </>
+                        ) : bulletText}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -218,14 +270,14 @@ function App() {
                 }}>
                   $ {postCommand} {buildStatus === 'fail' ? '— FAILED' : buildStatus === 'success' ? '— SUCCESS' : ''}
                 </div>
-                <pre style={{
-                  margin: 0,
-                  color: buildStatus === 'fail' ? '#f44747' : '#d4d4d4',
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: '1.5',
-                  maxHeight: '300px',
-                  overflowY: 'auto'
-                }}>{buildOutput}</pre>
+                {showDetailed && (
+                  <pre style={{
+                    margin: 0,
+                    color: buildStatus === 'fail' ? '#f44747' : '#d4d4d4',
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: '1.5'
+                  }}>{buildOutput}</pre>
+                )}
               </div>
             )}
 

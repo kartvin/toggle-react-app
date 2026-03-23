@@ -222,7 +222,7 @@ app.post('/remove-toggle', async (req, res) => {
     try {
       const originalContent = originalContentMap[update.relativePath] || '';
       const diff = computeDiff(originalContent, update.content);
-      fileDiffs.push({ file: update.relativePath, diff });
+      fileDiffs.push({ file: update.relativePath, diff, fullContent: update.content });
       fs.writeFileSync(update.fullPath, update.content, 'utf8');
       updatedCount++;
       changedFiles.push(update.relativePath);
