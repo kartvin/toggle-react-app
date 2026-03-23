@@ -16,6 +16,29 @@ function App() {
   const [buildOutput, setBuildOutput] = useState('');
   const [buildStatus, setBuildStatus] = useState('');
   const [showDetailed, setShowDetailed] = useState(false);
+  const [showBrowser, setShowBrowser] = useState(false);
+  const [browsePath, setBrowsePath] = useState('/');
+  const [browseDirs, setBrowseDirs] = useState([]);
+
+  const browseTo = async (dirPath) => {
+    try {
+      const res = await fetch(`http://localhost:4000/browse?path=${encodeURIComponent(dirPath)}`);
+      const data = await res.json();
+      if (data.error) return;
+      setBrowsePath(data.path);
+      setBrowseDirs(data.dirs);
+    } catch (e) { /* ignore */ }
+  };
+
+  const openBrowser = () => {
+    setShowBrowser(true);
+    browseTo(directory || '/');
+  };
+
+  const selectFolder = () => {
+    setDirectory(browsePath);
+    setShowBrowser(false);
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -82,13 +105,27 @@ function App() {
             </label>
           </div>
           {inputType === 'directory' ? (
-            <input
-              type="text"
-              placeholder="Relative Directory (e.g. src, backend)"
-              value={directory}
-              onChange={e => setDirectory(e.target.value)}
-              required
-            />
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="Project directory path"
+                value={directory}
+                onChange={e => setDirectory(e.target.value)}
+                required
+                style={{ flex: 1, marginBottom: 0 }}
+              />
+              <button type="button" onClick={openBrowser} style={{
+                padding: '0.55rem 0.75rem',
+                borderRadius: '12px',
+                border: '1px solid #d1d5db',
+                background: '#f9fafb',
+                cursor: 'pointer',
+                fontSize: '1.1rem',
+                lineHeight: 1,
+                color: '#555',
+                flexShrink: 0
+              }} title="Browse folders">📁</button>
+            </div>
           ) : (
             <input
               type="text"
@@ -127,6 +164,54 @@ function App() {
         </form>
         {result && <div style={{ marginTop: '1rem', color: 'green' }}>{result}</div>}
       </header>
+
+      {/* Folder Browser Modal */}
+      {showBrowser && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }} onClick={() => setShowBrowser(false)}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '1.5rem', width: '90%', maxWidth: '500px', maxHeight: '70vh',
+            display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0072CE', marginBottom: '0.75rem' }}>Select Folder</div>
+            <div style={{
+              background: '#f4f6f8', borderRadius: '8px', padding: '0.5rem 0.75rem', marginBottom: '0.75rem',
+              fontSize: '0.85rem', color: '#333', wordBreak: 'break-all'
+            }}>{browsePath}</div>
+            <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '1rem' }}>
+              {browsePath !== '/' && (
+                <div
+                  onClick={() => browseTo(browsePath.split('/').slice(0, -1).join('/') || '/')}
+                  style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', color: '#555', fontSize: '0.9rem' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#e8f0fe'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}
+                >📁 ..</div>
+              )}
+              {browseDirs.map(d => (
+                <div key={d}
+                  onClick={() => browseTo(browsePath === '/' ? '/' + d : browsePath + '/' + d)}
+                  style={{ padding: '0.5rem 0.75rem', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', fontSize: '0.9rem' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#e8f0fe'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}
+                >📁 {d}</div>
+              ))}
+              {browseDirs.length === 0 && (
+                <div style={{ padding: '1rem', color: '#999', textAlign: 'center', fontSize: '0.85rem' }}>No subdirectories</div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowBrowser(false)} style={{
+                padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer'
+              }}>Cancel</button>
+              <button type="button" onClick={selectFolder} style={{
+                padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', background: '#0072CE', color: '#fff', cursor: 'pointer', fontWeight: 600
+              }}>Select</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {(fileDiffs.length > 0 || buildOutput || summary) && (
         <div style={{

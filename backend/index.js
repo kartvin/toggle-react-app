@@ -144,6 +144,22 @@ function computeDiff(originalContent, updatedContent, contextLines = 3) {
   return result;
 }
 
+// Endpoint to browse directories on the server filesystem
+app.get('/browse', (req, res) => {
+  const dirPath = req.query.path || '/';
+  const resolved = path.resolve(dirPath);
+  try {
+    const entries = fs.readdirSync(resolved, { withFileTypes: true });
+    const dirs = entries
+      .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+      .map(e => e.name)
+      .sort();
+    res.json({ path: resolved, dirs });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Endpoint to receive project directory context and toggle name
 app.post('/remove-toggle', async (req, res) => {
   const exec = require('child_process').exec;
@@ -235,8 +251,8 @@ app.post('/remove-toggle', async (req, res) => {
   const summaryMatch = responseText.match(/---SUMMARY_START---(\s*[\s\S]*?)---SUMMARY_END---/);
   const summary = summaryMatch ? summaryMatch[1].trim() : '';
 
-  // Run post-refactor command if provided
-  if (postCommand && postCommand.trim()) {
+  // Run post-refactor command if provided and files were modified
+  if (updatedCount > 0 && postCommand && postCommand.trim()) {
     exec(postCommand.trim(), { cwd: absoluteDirectory }, (error, stdout, stderr) => {
       if (error) {
         return res.json({
