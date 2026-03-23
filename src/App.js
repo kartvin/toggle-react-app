@@ -43,6 +43,11 @@ function App() {
     e.preventDefault();
     setLoading(true);
     setResult('');
+    setFileDiffs([]);
+    setSummary('');
+    setFileList([]);
+    setBuildOutput('');
+    setBuildStatus('');
     try {
       const res = await fetch('http://localhost:4000/remove-toggle', {
         method: 'POST',
@@ -213,7 +218,7 @@ function App() {
         </div>
       )}
 
-      {(fileDiffs.length > 0 || buildOutput || summary) && (
+      {(loading || fileDiffs.length > 0 || buildOutput || summary) && (
         <div style={{
           margin: '2rem auto',
           maxWidth: '900px',
@@ -239,6 +244,17 @@ function App() {
             <span style={{ marginLeft: '8px', color: '#aaa', fontSize: '12px' }}>Refactor Output</span>
           </div>
           <div style={{ padding: '16px', maxHeight: '700px', overflowY: 'auto' }}>
+
+            {/* Loader */}
+            {loading && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1rem', gap: '1rem' }}>
+                <div style={{
+                  width: '36px', height: '36px', border: '3px solid #444', borderTop: '3px solid #569cd6',
+                  borderRadius: '50%', animation: 'spin 1s linear infinite'
+                }} />
+                <div style={{ color: '#aaa', fontSize: '13px' }}>Analyzing codebase and removing toggle...</div>
+              </div>
+            )}
 
             {/* File Diffs / Full Content */}
             {fileDiffs.map((fileDiff, idx) => (
