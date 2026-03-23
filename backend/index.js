@@ -164,9 +164,12 @@ app.get('/browse', (req, res) => {
 // Endpoint to receive project directory context and toggle name
 app.post('/remove-toggle', async (req, res) => {
 
-  const { directory, toggleName, postCommand, branchName, baseBranch } = req.body;
-  if (!directory || !toggleName) {
-    return res.status(400).json({ error: 'Missing directory or toggleName' });
+  const { directory, repoUrl, toggleName, postCommand, branchName, baseBranch } = req.body;
+  if (!directory && !repoUrl) {
+    return res.status(400).json({ error: 'Missing directory or repoUrl' });
+  }
+  if (!toggleName) {
+    return res.status(400).json({ error: 'Missing toggleName' });
   }
 
   // Validate branch name format
@@ -174,10 +177,32 @@ app.post('/remove-toggle', async (req, res) => {
     return res.status(400).json({ error: 'Branch name must match format: story/kk_USAB12345...' });
   }
 
-  // Resolve directory path to absolute
-  const absoluteDirectory = path.isAbsolute(directory)
-    ? directory
-    : path.resolve(directory);
+  let absoluteDirectory;
+
+  if (repoUrl) {
+    // Clone remote repo to Desktop
+    const repoName = repoUrl.replace(/\.git$/, '').split('/').pop();
+    const desktopPath = path.join(require('os').homedir(), 'Desktop');
+    absoluteDirectory = path.join(desktopPath, repoName);
+
+    try {
+      // Remove existing clone if present
+      if (fs.existsSync(absoluteDirectory)) {
+        execSync(`rm -rf "${absoluteDirectory}"`);
+      }
+      execSync(`git clone "${repoUrl}" "${absoluteDirectory}"`, { encoding: 'utf8' });
+      // Checkout base branch
+      const base = baseBranch || 'main';
+      execSync(`git checkout ${base}`, { cwd: absoluteDirectory, encoding: 'utf8' });
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to clone repo: ' + err.message });
+    }
+  } else {
+    // Resolve local directory path to absolute
+    absoluteDirectory = path.isAbsolute(directory)
+      ? directory
+      : path.resolve(directory);
+  }
 
   // Recursively read all source files
   let fileContents;

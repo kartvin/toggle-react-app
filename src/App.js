@@ -61,7 +61,7 @@ function App() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          directory,
+          ...(inputType === 'repo' ? { repoUrl: repo } : { directory }),
           toggleName: name,
           postCommand,
           branchName,
@@ -146,7 +146,7 @@ function App() {
           ) : (
             <input
               type="text"
-              placeholder="Repo Location"
+              placeholder="Remote repo URL (e.g. git@github.com:org/repo.git)"
               value={repo}
               onChange={e => setRepo(e.target.value)}
               required
