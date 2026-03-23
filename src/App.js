@@ -12,7 +12,7 @@ function App() {
   const [fileDiffs, setFileDiffs] = useState([]);
   const [summary, setSummary] = useState('');
   const [fileList, setFileList] = useState([]);
-  const [postCommand, setPostCommand] = useState('mvn clean install -DskipTests=true');
+  const [postCommand, setPostCommand] = useState('mvn clean install');
   const [buildOutput, setBuildOutput] = useState('');
   const [buildStatus, setBuildStatus] = useState('');
   const [showDetailed, setShowDetailed] = useState(false);
